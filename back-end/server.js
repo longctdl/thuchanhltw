@@ -1,31 +1,77 @@
 const express = require('express');
 const cors = require('cors');
+const mysql = require('mysql2');
+
 const app = express();
 const PORT = 5000;
-
-// Dữ liệu tạm lưu trong RAM
-let users = [];
 
 app.use(cors());
 app.use(express.json());
 
-// GET: Trả danh sách người dùng
+// Kết nối MySQL
+const connection = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: 'Long24012004',
+  database: 'userdb'
+});
+
+connection.connect(err => {
+  if (err) {
+    console.error('❌ Lỗi kết nối MySQL:', err);
+    return;
+  }
+  console.log('✅ Kết nối MySQL thành công');
+});
+
+// -------------------- API --------------------
+
+
 app.get('/api/users', (req, res) => {
-    res.json(users);
+  connection.query('SELECT * FROM users', (err, results) => {
+    if (err) return res.status(500).json({ message: 'Lỗi server' });
+    res.json(results);
+  });
 });
 
-// POST: Nhận tên và email, thêm vào danh sách
+
 app.post('/api/users', (req, res) => {
-    const { name, email } = req.body;
-    if (name && email) {
-        users.push({ name, email });
-        res.status(201).json({ message: 'User added!' });
-    } else {
-        res.status(400).json({ message: 'Missing name or email' });
-    }
+  const { name, email, phone, address } = req.body;
+  if (!name || !email) {
+    return res.status(400).json({ message: 'Thiếu tên hoặc email' });
+  }
+
+  const query = 'INSERT INTO users (name, email, phone, address) VALUES (?, ?, ?, ?)';
+  connection.query(query, [name, email, phone, address], (err) => {
+    if (err) return res.status(500).json({ message: 'Lỗi khi thêm' });
+    res.status(201).json({ message: 'Đã thêm người dùng!' });
+  });
 });
 
-// Start server
+
+app.put('/api/users/:id', (req, res) => {
+  const userId = req.params.id;
+  const { name, email, phone, address } = req.body;
+
+  const query = 'UPDATE users SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?';
+  connection.query(query, [name, email, phone, address, userId], (err) => {
+    if (err) return res.status(500).json({ message: 'Lỗi khi cập nhật' });
+    res.json({ message: 'Cập nhật thành công!' });
+  });
+});
+
+
+app.delete('/api/users/:id', (req, res) => {
+    const userId = req.params.id;
+    connection.query('DELETE FROM users WHERE id = ?', [userId], (err) => {
+      if (err) return res.status(500).json({ message: 'Lỗi khi xóa' });
+      res.json({ message: 'Đã xóa người dùng!' });
+    });
+  });
+  
+
+// ----------------------------------------------
+
 app.listen(PORT, () => {
-    console.log(`✅ Backend server đang chạy tại http://localhost:${PORT}`);
+  console.log(`✅ Backend server đang chạy tại http://localhost:${PORT}`);
 });
